@@ -1,6 +1,7 @@
 <script lang="ts">
 	import Header from '$lib/components/Header.svelte';
 	import { goto } from '$app/navigation';
+	import { track } from '$lib/analytics';
 
 	let { data } = $props();
 
@@ -140,7 +141,10 @@
 			<div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
 				{#each topics as topic}
 					<button
-						onclick={() => goto(`/dashboard/topic/${topic.id}`)}
+						onclick={() => {
+							track('topic_click', { topic_id: topic.id, topic_label: topic.label, query_count: topic.query_count });
+							goto(`/dashboard/topic/${topic.id}`);
+						}}
 						class="group relative overflow-hidden rounded-xl border border-edge bg-deep p-5
 							text-left transition-all duration-300
 							hover:border-accent/30 hover:bg-surface {depthGlow(topic.query_count)}

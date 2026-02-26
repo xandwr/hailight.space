@@ -13,6 +13,10 @@
 	import { select, selectAll } from 'd3-selection';
 	import type { GraphNode, GraphEdge } from '$lib/types/graph';
 
+	// D3 simulation mutates nodes/edges, adding x/y/fx/fy and resolving source/target to objects
+	type SimNode = GraphNode & { x: number; y: number; fx?: number | null; fy?: number | null };
+	type SimEdge = Omit<GraphEdge, 'source' | 'target'> & { source: SimNode; target: SimNode };
+
 	let {
 		nodes,
 		edges,
@@ -106,7 +110,7 @@
 		// Zoom behavior
 		const zoomBehavior = zoom<SVGSVGElement, unknown>()
 			.scaleExtent([0.2, 4])
-			.on('zoom', (event) => {
+			.on('zoom', (event: any) => {
 				g.attr('transform', event.transform.toString());
 			});
 		svg.call(zoomBehavior as any);
@@ -122,8 +126,8 @@
 			.append('line')
 			.attr('class', 'edge-bridge')
 			.attr('stroke-linecap', 'round')
-			.attr('stroke', (d) => `rgba(124,111,247,${0.15 + d.strength * 0.5})`)
-			.attr('stroke-width', (d) => 1 + d.strength * 3);
+			.attr('stroke', (d: GraphEdge) => `rgba(124,111,247,${0.15 + d.strength * 0.5})`)
+			.attr('stroke-width', (d: GraphEdge) => 1 + d.strength * 3);
 
 		const gapLines = g
 			.selectAll('.edge-gap')
@@ -136,8 +140,8 @@
 			.attr('stroke-dasharray', '8 5')
 			.attr('filter', 'url(#glow-gap)')
 			.style('cursor', 'pointer')
-			.on('click', (_event, d) => onGapClick(d))
-			.on('mouseenter', (_event, d) => { hoveredEdge = d; })
+			.on('click', (_event: MouseEvent, d: GraphEdge) => onGapClick(d))
+			.on('mouseenter', (_event: MouseEvent, d: GraphEdge) => { hoveredEdge = d; })
 			.on('mouseleave', () => { hoveredEdge = null; });
 
 		// Draw nodes
@@ -148,16 +152,16 @@
 			.append('g')
 			.attr('class', 'graph-node')
 			.style('cursor', 'pointer')
-			.on('mouseenter', (_event, d) => { hoveredNode = d; })
+			.on('mouseenter', (_event: MouseEvent, d: GraphNode) => { hoveredNode = d; })
 			.on('mouseleave', () => { hoveredNode = null; })
-			.on('click', (_event, d) => onNodeClick(d));
+			.on('click', (_event: MouseEvent, d: GraphNode) => onNodeClick(d));
 
 		// Outer glow circle
 		nodeGroups
 			.append('circle')
-			.attr('r', (d) => d.radius + 8)
+			.attr('r', (d: GraphNode) => d.radius + 8)
 			.attr('fill', 'none')
-			.attr('stroke', (d) => `rgba(124,111,247,${nodeGlowOpacity(d)})`)
+			.attr('stroke', (d: GraphNode) => `rgba(124,111,247,${nodeGlowOpacity(d)})`)
 			.attr('stroke-width', 12)
 			.attr('filter', 'url(#glow)');
 
@@ -165,32 +169,32 @@
 		nodeGroups
 			.append('circle')
 			.attr('class', 'node-main')
-			.attr('r', (d) => d.radius)
+			.attr('r', (d: GraphNode) => d.radius)
 			.attr('fill', 'rgba(18,18,26,0.92)')
 			.attr('stroke', '#7c6ff7')
 			.attr('stroke-width', 1.5);
 
 		// Source count ring
 		nodeGroups
-			.filter((d) => d.sourceCount > 0)
+			.filter((d: GraphNode) => d.sourceCount > 0)
 			.append('circle')
-			.attr('r', (d) => d.radius * 0.35)
+			.attr('r', (d: GraphNode) => d.radius * 0.35)
 			.attr('fill', 'none')
 			.attr('stroke', 'rgba(124,111,247,0.25)')
 			.attr('stroke-width', 1)
-			.attr('stroke-dasharray', (d) => `${Math.min(d.sourceCount, 20)} 3`);
+			.attr('stroke-dasharray', (d: GraphNode) => `${Math.min(d.sourceCount, 20)} 3`);
 
 		// Label
 		nodeGroups
 			.append('text')
-			.attr('y', (d) => d.radius + 18)
+			.attr('y', (d: GraphNode) => d.radius + 18)
 			.attr('text-anchor', 'middle')
 			.attr('fill', '#e0e0f0')
 			.attr('font-size', '11')
 			.attr('font-weight', '300')
 			.style('pointer-events', 'none')
 			.style('user-select', 'none')
-			.text((d) => truncate(d.label, 24));
+			.text((d: GraphNode) => truncate(d.label, 24));
 
 		// Query count badge
 		nodeGroups
@@ -198,22 +202,22 @@
 			.attr('text-anchor', 'middle')
 			.attr('dominant-baseline', 'central')
 			.attr('fill', '#9d8fff')
-			.attr('font-size', (d) => (d.radius > 30 ? '14' : '11'))
+			.attr('font-size', (d: GraphNode) => (d.radius > 30 ? '14' : '11'))
 			.attr('font-weight', '500')
-			.text((d) => d.queryCount);
+			.text((d: GraphNode) => d.queryCount);
 
 		// Drag behavior
 		const dragBehavior = drag<SVGGElement, GraphNode>()
-			.on('start', (event, d) => {
+			.on('start', (event: any, d: any) => {
 				if (!event.active) sim.alphaTarget(0.3).restart();
 				d.fx = d.x;
 				d.fy = d.y;
 			})
-			.on('drag', (event, d) => {
+			.on('drag', (event: any, d: any) => {
 				d.fx = event.x;
 				d.fy = event.y;
 			})
-			.on('end', (event, d) => {
+			.on('end', (event: any, d: any) => {
 				if (!event.active) sim.alphaTarget(0);
 				d.fx = null;
 				d.fy = null;
@@ -226,8 +230,8 @@
 			.force(
 				'link',
 				forceLink<GraphNode, GraphEdge>(simEdges)
-					.id((d) => d.id)
-					.distance((d) => {
+					.id((d: GraphNode) => d.id)
+					.distance((d: GraphEdge) => {
 						const s = typeof d.strength === 'number' ? d.strength : 0.5;
 						return 120 + 180 * (1 - s);
 					})
@@ -238,24 +242,24 @@
 			.force('y', forceY(cy).strength(0.05))
 			.force(
 				'collision',
-				forceCollide<GraphNode>().radius((d) => d.radius + 12),
+				forceCollide<GraphNode>().radius((d: GraphNode) => d.radius + 12),
 			)
 			.alphaDecay(0.02)
 			.on('tick', () => {
-				// Update positions directly via D3
+				// D3 mutates source/target from string IDs to node objects during simulation
 				bridgeLines
-					.attr('x1', (d) => (d.source as GraphNode).x!)
-					.attr('y1', (d) => (d.source as GraphNode).y!)
-					.attr('x2', (d) => (d.target as GraphNode).x!)
-					.attr('y2', (d) => (d.target as GraphNode).y!);
+					.attr('x1', (d: any) => d.source.x)
+					.attr('y1', (d: any) => d.source.y)
+					.attr('x2', (d: any) => d.target.x)
+					.attr('y2', (d: any) => d.target.y);
 
 				gapLines
-					.attr('x1', (d) => (d.source as GraphNode).x!)
-					.attr('y1', (d) => (d.source as GraphNode).y!)
-					.attr('x2', (d) => (d.target as GraphNode).x!)
-					.attr('y2', (d) => (d.target as GraphNode).y!);
+					.attr('x1', (d: any) => d.source.x)
+					.attr('y1', (d: any) => d.source.y)
+					.attr('x2', (d: any) => d.target.x)
+					.attr('y2', (d: any) => d.target.y);
 
-				nodeGroups.attr('transform', (d) => `translate(${d.x},${d.y})`);
+				nodeGroups.attr('transform', (d: any) => `translate(${d.x},${d.y})`);
 			});
 
 		simulation = sim;

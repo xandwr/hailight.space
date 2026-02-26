@@ -22,7 +22,7 @@
 		loading = true;
 		error = null;
 		try {
-			const result = await loadGraphData(data.supabase, data.user?.id);
+			const result = await loadGraphData(data.supabase, data.user!.id);
 			nodes = result.nodes;
 			edges = result.edges;
 		} catch (e: any) {

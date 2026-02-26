@@ -3,6 +3,7 @@
 	import { goto } from '$app/navigation';
 	import { page } from '$app/stores';
 	import Header from '$lib/components/Header.svelte';
+	import { track } from '$lib/analytics';
 
 	let { data } = $props();
 
@@ -70,6 +71,9 @@
 		error = null;
 		result = null;
 
+		const searchStart = Date.now();
+		track('search', { query: query.trim() });
+
 		try {
 			const session = data.session;
 			const resp = await fetch(`${PUBLIC_SUPABASE_PROJECT_URL}/functions/v1/search`, {
@@ -87,8 +91,21 @@
 			}
 
 			result = await resp.json();
+			track('search_result', {
+				query: query.trim(),
+				query_id: result?.query_id,
+				topic_id: result?.topic?.id,
+				topic_label: result?.topic?.label,
+				is_new_topic: result?.topic?.is_new,
+				source_count: result?.sources?.length,
+				connection_count: result?.connections?.length,
+				echo_count: result?.cross_query_connections?.length,
+				gap_count: result?.gaps?.length,
+				duration_ms: Date.now() - searchStart,
+			});
 		} catch (e: any) {
 			error = e.message;
+			track('search_error', { query: query.trim(), error: e.message });
 		} finally {
 			loading = false;
 		}
@@ -122,8 +139,28 @@
 	}
 
 	function followUp(q: string) {
+		track('follow_up_click', { question: q, from_query: query.trim() });
 		query = q;
 		search();
+	}
+
+	function trackSourceClick(source: Source, index: number) {
+		track('source_click', {
+			source_url: source.url,
+			source_title: source.title,
+			position: index,
+			query_id: result?.query_id,
+		});
+	}
+
+	function trackEchoClick(cq: SearchResult['cross_query_connections'][0]) {
+		track('echo_click', {
+			related_url: cq.related_url,
+			related_source: cq.related_source,
+			from_query: cq.from_query,
+			similarity: cq.similarity,
+			query_id: result?.query_id,
+		});
 	}
 </script>
 
@@ -163,7 +200,7 @@
 		{#if loading}
 			<div class="mt-16 flex flex-col items-center gap-4 text-muted">
 				<div class="h-8 w-8 animate-spin rounded-full border-2 border-edge border-t-accent"></div>
-				<p class="text-sm">Searching sources and mapping connections...</p>
+				<p class="text-sm">Searching sources and mapping connections... (this might take a bit!)</p>
 			</div>
 		{/if}
 
@@ -209,6 +246,7 @@
 											<span class="font-medium text-bright">{cq.current_source}</span>
 											<span class="text-muted mx-1">&harr;</span>
 											<a href={cq.related_url} target="_blank" rel="noopener noreferrer"
+												onclick={() => trackEchoClick(cq)}
 												class="font-medium text-accent hover:text-accent-glow transition-colors"
 											>{cq.related_source}</a>
 										</p>
@@ -297,11 +335,12 @@
 					Sources ({result.sources.length})
 				</h2>
 				<div class="space-y-3">
-					{#each result.sources as source}
+					{#each result.sources as source, i}
 						<a
 							href={source.url}
 							target="_blank"
 							rel="noopener noreferrer"
+							onclick={() => trackSourceClick(source, i)}
 							class="block rounded-lg border border-edge bg-deep p-4 transition-colors hover:border-edge hover:bg-surface"
 						>
 							<h3 class="text-sm font-medium text-bright">{source.title}</h3>

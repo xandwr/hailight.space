@@ -2,6 +2,8 @@
 	import favicon from '$lib/assets/favicon.svg';
 	import { invalidate } from '$app/navigation';
 	import { onMount } from 'svelte';
+	import { initAnalytics, track } from '$lib/analytics';
+	import { beforeNavigate } from '$app/navigation';
 	import '../app.css';
 
 	let { data, children } = $props();
@@ -13,7 +15,18 @@
 			}
 		});
 
+		if (data.user) {
+			initAnalytics(data.supabase, data.user.id);
+			track('page_view');
+		}
+
 		return () => subscription.unsubscribe();
+	});
+
+	beforeNavigate(({ to }) => {
+		if (to && data.user) {
+			track('page_view', { to: to.url.pathname });
+		}
 	});
 </script>
 
