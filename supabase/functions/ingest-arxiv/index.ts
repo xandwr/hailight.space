@@ -22,6 +22,7 @@ const EMBED_BATCH_SIZE = 50;
 
 interface ArxivPaper {
   arxivId: string;
+  doi: string | null;
   title: string;
   abstract: string;
   authors: string[];
@@ -94,12 +95,17 @@ function parseOaiResponse(xml: string): {
     const categoriesStr = xmlTag(arxivBlock, "categories") ?? "";
     const categories = categoriesStr.split(/\s+/).filter(Boolean);
 
+    // DOI (arXiv metadata includes <doi> when available)
+    const rawDoi = xmlTag(arxivBlock, "doi");
+    const doi = rawDoi ? `https://doi.org/${rawDoi}` : null;
+
     // Date
     const created = xmlTag(arxivBlock, "created") ?? "";
     const publishedAt = created ? `${created}T00:00:00Z` : new Date().toISOString();
 
     papers.push({
       arxivId,
+      doi,
       title,
       abstract: abstract.replace(/\s+/g, " "),
       authors,
@@ -184,7 +190,7 @@ async function embedAndInsertBatch(
 ): Promise<{ inserted: number; skipped: number }> {
   if (papers.length === 0) return { inserted: 0, skipped: 0 };
 
-  // Check which papers we already have (dedup by external_id)
+  // Dedup layer 1: by external_id (same source re-ingest)
   const arxivIds = papers.map((p) => p.arxivId);
   const { data: existing } = await db
     .from("sources")
@@ -193,10 +199,30 @@ async function embedAndInsertBatch(
     .in("external_id", arxivIds);
 
   const existingIds = new Set((existing ?? []).map((e: any) => e.external_id));
-  const newPapers = papers.filter((p) => !existingIds.has(p.arxivId));
+
+  // Dedup layer 2: by DOI (cross-source, e.g. already ingested via OpenAlex)
+  const doisToCheck = papers
+    .filter((p) => p.doi && !existingIds.has(p.arxivId))
+    .map((p) => p.doi!);
+  const existingDois = new Set<string>();
+  if (doisToCheck.length > 0) {
+    const { data: doiMatches } = await db
+      .from("sources")
+      .select("doi")
+      .in("doi", doisToCheck);
+    for (const m of doiMatches ?? []) existingDois.add(m.doi);
+  }
+
+  const newPapers = papers.filter(
+    (p) => !existingIds.has(p.arxivId) && !(p.doi && existingDois.has(p.doi)),
+  );
 
   if (newPapers.length === 0) {
-    log.info("batch_all_duplicates", { skipped: papers.length });
+    log.info("batch_all_duplicates", {
+      skipped: papers.length,
+      by_id: existingIds.size,
+      by_doi: existingDois.size,
+    });
     return { inserted: 0, skipped: papers.length };
   }
 
@@ -221,6 +247,7 @@ async function embedAndInsertBatch(
     exa_score: null,
     source_type: "arxiv",
     external_id: paper.arxivId,
+    doi: paper.doi,
     categories: paper.categories,
   }));
 
