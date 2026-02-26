@@ -4,7 +4,8 @@
     "jsr:@std/assert@1": "1.0.19",
     "jsr:@std/internal@^1.0.12": "1.0.12",
     "npm:create-astro@*": "4.13.2",
-    "npm:supabase@^2.76.15": "2.76.15"
+    "npm:supabase@^2.76.15": "2.76.15",
+    "npm:sv@*": "0.12.2"
   },
   "jsr": {
     "@std/assert@1.0.19": {
@@ -228,6 +229,10 @@
         "tar"
       ],
       "scripts": true,
+      "bin": true
+    },
+    "sv@0.12.2": {
+      "integrity": "sha512-W1jn3pjIjVDOjM04JBY5jACsvotE198ahRQm8zuv5hMY6UHrB5ucpwIbPIYEeoXSPjirrLr1rcQ46S+tvFb3vw==",
       "bin": true
     },
     "tar@7.5.9": {
