@@ -8,6 +8,78 @@ const EXA_API_KEY = Deno.env.get("EXA_API_KEY")!;
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
+const EMBEDDING_MODEL = "qwen/qwen3-embedding-8b";
+const EMBEDDING_DIMS = 1536;
+
+// --- Embeddings via OpenRouter ---
+async function embedTexts(texts: string[]): Promise<number[][]> {
+  const resp = await fetch("https://openrouter.ai/api/v1/embeddings", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${OPENROUTER_API_KEY}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      model: EMBEDDING_MODEL,
+      input: texts,
+      dimensions: EMBEDDING_DIMS,
+    }),
+  });
+
+  if (!resp.ok) {
+    const err = await resp.text();
+    throw new Error(`Embedding failed: ${resp.status} ${err}`);
+  }
+
+  const data = await resp.json();
+  return data.data
+    .sort((a: any, b: any) => a.index - b.index)
+    .map((d: any) => d.embedding);
+}
+
+// --- Cross-query similarity search ---
+async function findRelatedSources(
+  embeddings: number[][],
+  currentQueryId: string,
+  threshold = 0.82,
+  limit = 5,
+): Promise<CrossQueryMatch[]> {
+  const matches: CrossQueryMatch[] = [];
+
+  for (let i = 0; i < embeddings.length; i++) {
+    const vecStr = `[${embeddings[i].join(",")}]`;
+    const { data, error } = await supabase.rpc("match_sources", {
+      query_embedding: vecStr,
+      match_threshold: threshold,
+      match_count: limit,
+      exclude_query_id: currentQueryId,
+    });
+    if (!error && data?.length) {
+      matches.push(
+        ...data.map((m: any) => ({
+          source_index: i,
+          matched_source_id: m.id,
+          matched_title: m.title,
+          matched_url: m.url,
+          matched_query: m.raw_input,
+          similarity: m.similarity,
+        })),
+      );
+    }
+  }
+
+  return matches;
+}
+
+interface CrossQueryMatch {
+  source_index: number;
+  matched_source_id: string;
+  matched_title: string;
+  matched_url: string;
+  matched_query: string;
+  similarity: number;
+}
+
 // --- Exa Search ---
 async function searchExa(query: string): Promise<ExaResult[]> {
   const resp = await fetch("https://api.exa.ai/search", {
@@ -185,8 +257,14 @@ Deno.serve(async (req) => {
     // 2. Search with Exa
     const exaResults = await searchExa(query);
 
-    // 3. Store sources
-    const sourceRows = exaResults.map((r) => ({
+    // 3. Generate embeddings for source texts
+    const textsToEmbed = exaResults.map(
+      (r) => `${r.title}\n${r.summary}\n${r.highlights.join(" ")}`,
+    );
+    const embeddings = await embedTexts(textsToEmbed);
+
+    // 4. Store sources with embeddings
+    const sourceRows = exaResults.map((r, i) => ({
       query_id: queryId,
       url: r.url,
       title: r.title,
@@ -195,6 +273,7 @@ Deno.serve(async (req) => {
       snippet: r.summary,
       full_text: r.text,
       exa_score: r.score,
+      embedding: JSON.stringify(embeddings[i]),
     }));
 
     const { data: insertedSources, error: sourceErr } = await supabase
@@ -204,10 +283,16 @@ Deno.serve(async (req) => {
 
     if (sourceErr) throw sourceErr;
 
-    // 4. Analyze connections with LLM
+    // 5. Find related sources from previous queries
+    const crossQueryMatches = await findRelatedSources(
+      embeddings,
+      queryId,
+    );
+
+    // 6. Analyze connections with LLM
     const analysis = await analyzeConnections(query, exaResults);
 
-    // 5. Store connections
+    // 7. Store connections
     if (analysis.connections.length > 0) {
       const connectionRows = analysis.connections
         .filter(
@@ -233,7 +318,7 @@ Deno.serve(async (req) => {
       }
     }
 
-    // 6. Store synthesis
+    // 8. Store synthesis
     const { error: synthErr } = await supabase.from("syntheses").insert({
       query_id: queryId,
       summary: analysis.synthesis,
@@ -244,7 +329,7 @@ Deno.serve(async (req) => {
 
     if (synthErr) throw synthErr;
 
-    // 7. Return everything
+    // 9. Return everything
     return Response.json(
       {
         query_id: queryId,
@@ -262,6 +347,13 @@ Deno.serve(async (req) => {
           relationship: c.relationship,
           explanation: c.explanation,
           strength: c.strength,
+        })),
+        cross_query_connections: crossQueryMatches.map((m) => ({
+          current_source: exaResults[m.source_index]?.title,
+          related_source: m.matched_title,
+          related_url: m.matched_url,
+          from_query: m.matched_query,
+          similarity: Math.round(m.similarity * 1000) / 1000,
         })),
         synthesis: analysis.synthesis,
         gaps: analysis.gaps,
