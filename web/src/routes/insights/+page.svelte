@@ -253,7 +253,7 @@
 					<div class="flex flex-wrap gap-2">
 						{#each synthesis.recommended_queries as q}
 							<a
-								href="/?q={encodeURIComponent(q)}"
+								href="/search?q={encodeURIComponent(q)}"
 								class="rounded-full border border-accent/30 bg-accent/5 px-4 py-2 text-sm text-accent
 									transition-colors hover:bg-accent/10 hover:border-accent/50"
 							>

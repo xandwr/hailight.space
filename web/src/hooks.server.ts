@@ -28,8 +28,8 @@ export const handle: Handle = async ({ event, resolve }) => {
 		return { session, user }
 	}
 
-	// Protect all routes except /auth
-	if (!event.url.pathname.startsWith('/auth')) {
+	// Protect all routes except / (landing) and /auth
+	if (event.url.pathname !== '/' && !event.url.pathname.startsWith('/auth')) {
 		const { session } = await event.locals.safeGetSession()
 		if (!session) {
 			redirect(303, '/auth')

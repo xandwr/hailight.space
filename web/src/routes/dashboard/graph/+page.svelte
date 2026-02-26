@@ -101,7 +101,7 @@
 					Grid view
 				</a>
 				<a
-					href="/"
+					href="/search"
 					class="rounded-lg bg-accent px-4 py-2 text-sm font-medium text-bright
 						transition-all hover:bg-accent-glow hover:shadow-[0_0_20px_rgba(124,111,247,0.3)]"
 				>
@@ -133,7 +133,7 @@
 						</p>
 					</div>
 					<a
-						href="/"
+						href="/search"
 						class="rounded-lg bg-accent px-5 py-2.5 text-sm font-medium text-bright
 							transition-all hover:bg-accent-glow"
 					>
@@ -157,7 +157,7 @@
 						</p>
 					</div>
 					<a
-						href="/"
+						href="/search"
 						class="rounded-lg bg-accent px-5 py-2.5 text-sm font-medium text-bright
 							transition-all hover:bg-accent-glow"
 					>
