@@ -21,9 +21,10 @@ const EMBED_BATCH_SIZE = 50;
 // Max results per API page (OpenAlex max is 200)
 const PAGE_SIZE = 200;
 
-// C41008148 = Computer Science (level 0 concept, 165M+ works)
+// Level 0 concept IDs (OpenAlex)
+// C41008148 = Computer Science, C33923547 = Mathematics, C121332964 = Physics
 // has_abstract filters out works without usable text (saves embedding costs)
-const CS_CONCEPT_FILTER = "concepts.id:C41008148,has_abstract:true";
+const CONCEPT_FILTER = "concepts.id:C41008148|C33923547|C121332964,has_abstract:true";
 
 interface OpenAlexWork {
   openalexId: string;
@@ -302,7 +303,7 @@ async function embedAndInsertBatch(
  * - cursor: string | null — continue from previous harvest ("*" for fresh start)
  * - filter: string | null — OpenAlex filter override (default: CS topics + recent)
  * - from_date: string | null — ISO date (YYYY-MM-DD) for incremental harvest
- * - max_pages: number — max pages to fetch (default: 5, max: 20)
+ * - max_pages: number — max pages to fetch (default: 8, max: 20)
  */
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") return corsOptions();
@@ -322,7 +323,7 @@ Deno.serve(async (req: Request) => {
     }
 
     const body = req.method === "POST" ? await req.json() : {};
-    const maxPages: number = Math.min(body.max_pages ?? 5, 20);
+    const maxPages: number = Math.min(body.max_pages ?? 8, 20);
 
     // Load harvest state (maybeSingle: no error if row doesn't exist yet)
     const { data: state } = await db
@@ -342,7 +343,7 @@ Deno.serve(async (req: Request) => {
         : state?.last_from_date) ??
       null;
 
-    let filter = body.filter ?? CS_CONCEPT_FILTER;
+    let filter = body.filter ?? CONCEPT_FILTER;
     if (fromDate && !body.filter) {
       // Use from_updated_date for incremental, from_publication_date for initial
       const dateFilter = state?.is_complete
@@ -354,7 +355,7 @@ Deno.serve(async (req: Request) => {
     // If previous harvest completed and no new from_date, start fresh from recent
     if (state?.is_complete && !body.from_date && !body.cursor) {
       const lastDate = state.last_from_date ?? new Date().toISOString().slice(0, 10);
-      filter = `${CS_CONCEPT_FILTER},from_updated_date:${lastDate}`;
+      filter = `${CONCEPT_FILTER},from_updated_date:${lastDate}`;
       cursor = "*";
     }
 

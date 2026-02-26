@@ -14,8 +14,8 @@ const db = getServiceClient();
 // arXiv OAI-PMH endpoint (migrated from export.arxiv.org/oai2 in 2025)
 const OAI_BASE = "https://oaipmh.arxiv.org/oai";
 
-// CS subcategories we want
-const ARXIV_CS_SET = "cs";
+// Supported arXiv sets
+const VALID_SETS = new Set(["cs", "math", "physics"]);
 
 // Batch size for embedding (OpenRouter limit is ~2048 inputs, but keep reasonable)
 const EMBED_BATCH_SIZE = 50;
@@ -132,6 +132,7 @@ function parseOaiResponse(xml: string): {
 async function fetchArxivPage(
   resumptionToken: string | null,
   fromDate: string | null,
+  arxivSet: string,
   log: Logger,
 ): Promise<{ papers: ArxivPaper[]; resumptionToken: string | null; completeListSize: number | null }> {
   let url: string;
@@ -140,8 +141,8 @@ async function fetchArxivPage(
     // Continue from resumption token (arXiv returns it already URL-encoded)
     url = `${OAI_BASE}?verb=ListRecords&resumptionToken=${resumptionToken}`;
   } else {
-    // Initial request — fetch CS papers
-    url = `${OAI_BASE}?verb=ListRecords&metadataPrefix=arXiv&set=${ARXIV_CS_SET}`;
+    // Initial request — fetch papers for the specified set
+    url = `${OAI_BASE}?verb=ListRecords&metadataPrefix=arXiv&set=${arxivSet}`;
     if (fromDate) {
       url += `&from=${fromDate}`;
     }
@@ -280,9 +281,10 @@ async function embedAndInsertBatch(
  * Main handler: harvest arXiv papers via OAI-PMH.
  *
  * POST body:
+ * - set: string — arXiv set to harvest ("cs", "math", "physics"). Default: "cs"
  * - resumption_token: string | null — continue from previous harvest
  * - from_date: string | null — ISO date (YYYY-MM-DD) to start from
- * - max_pages: number — max pages to fetch in this invocation (default: 3)
+ * - max_pages: number — max pages to fetch in this invocation (default: 5)
  */
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") return corsOptions();
@@ -299,14 +301,21 @@ Deno.serve(async (req: Request) => {
     }
 
     const body = req.method === "POST" ? await req.json() : {};
-    const maxPages: number = Math.min(body.max_pages ?? 3, 10);
+    const arxivSet: string = body.set ?? "cs";
+    if (!VALID_SETS.has(arxivSet)) {
+      throw new AppError(`Invalid set: ${arxivSet}. Must be one of: ${[...VALID_SETS].join(", ")}`, 400, "INVALID_SET");
+    }
+    const maxPages: number = Math.min(body.max_pages ?? 5, 10);
+
+    // Per-set harvest state key (e.g. "arxiv:cs", "arxiv:math")
+    const stateKey = `arxiv:${arxivSet}`;
 
     // Load harvest state (auto-resume from where we left off)
     const { data: state } = await db
       .from("harvest_state")
       .select("*")
-      .eq("source_type", "arxiv")
-      .single();
+      .eq("source_type", stateKey)
+      .maybeSingle();
 
     let resumptionToken: string | null =
       body.resumption_token ?? state?.resumption_token ?? null;
@@ -314,6 +323,7 @@ Deno.serve(async (req: Request) => {
       body.from_date ?? (state?.is_complete ? new Date().toISOString().slice(0, 10) : state?.last_from_date) ?? null;
 
     log.info("harvest_start", {
+      set: arxivSet,
       has_token: !!resumptionToken,
       from_date: fromDate,
       max_pages: maxPages,
@@ -326,7 +336,7 @@ Deno.serve(async (req: Request) => {
 
     for (let page = 0; page < maxPages; page++) {
       // Fetch page from arXiv
-      const result = await fetchArxivPage(resumptionToken, fromDate, log);
+      const result = await fetchArxivPage(resumptionToken, fromDate, arxivSet, log);
 
       if (result.completeListSize) {
         completeListSize = result.completeListSize;
@@ -356,9 +366,9 @@ Deno.serve(async (req: Request) => {
       }
     }
 
-    // Persist harvest state for next invocation
+    // Persist harvest state for next invocation (per-set key)
     await db.from("harvest_state").upsert({
-      source_type: "arxiv",
+      source_type: stateKey,
       resumption_token: resumptionToken,
       last_from_date: fromDate,
       last_harvested_at: new Date().toISOString(),
@@ -367,6 +377,7 @@ Deno.serve(async (req: Request) => {
     }, { onConflict: "source_type" });
 
     const response = {
+      set: arxivSet,
       pages_processed: pagesProcessed,
       papers_inserted: totalInserted,
       papers_skipped: totalSkipped,
