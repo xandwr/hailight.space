@@ -42,6 +42,13 @@
 				>
 					Graph
 				</a>
+				<a
+					href="/insights"
+					class="rounded-md px-3 py-1.5 text-sm transition-colors
+						{currentPath === '/insights' ? 'text-bright bg-surface' : 'text-muted hover:text-text'}"
+				>
+					Insights
+				</a>
 			</nav>
 		</div>
 		<div class="flex items-center gap-4">
