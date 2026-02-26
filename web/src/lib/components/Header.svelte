@@ -31,9 +31,16 @@
 				<a
 					href="/dashboard"
 					class="rounded-md px-3 py-1.5 text-sm transition-colors
-						{currentPath.startsWith('/dashboard') ? 'text-bright bg-surface' : 'text-muted hover:text-text'}"
+						{currentPath === '/dashboard' ? 'text-bright bg-surface' : 'text-muted hover:text-text'}"
 				>
 					Research Spaces
+				</a>
+				<a
+					href="/dashboard/graph"
+					class="rounded-md px-3 py-1.5 text-sm transition-colors
+						{currentPath === '/dashboard/graph' ? 'text-bright bg-surface' : 'text-muted hover:text-text'}"
+				>
+					Graph
 				</a>
 			</nav>
 		</div>

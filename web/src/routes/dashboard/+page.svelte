@@ -91,13 +91,22 @@
 					{topics.length} topic{topics.length !== 1 ? 's' : ''} &middot; your queries auto-cluster into research threads
 				</p>
 			</div>
-			<a
-				href="/"
-				class="rounded-lg bg-accent px-4 py-2 text-sm font-medium text-bright
-					transition-all hover:bg-accent-glow hover:shadow-[0_0_20px_rgba(124,111,247,0.3)]"
-			>
-				New search
-			</a>
+			<div class="flex items-center gap-3">
+				<a
+					href="/dashboard/graph"
+					class="rounded-lg border border-edge px-4 py-2 text-sm text-muted
+						transition-all hover:border-accent/30 hover:text-bright"
+				>
+					View graph
+				</a>
+				<a
+					href="/"
+					class="rounded-lg bg-accent px-4 py-2 text-sm font-medium text-bright
+						transition-all hover:bg-accent-glow hover:shadow-[0_0_20px_rgba(124,111,247,0.3)]"
+				>
+					New search
+				</a>
+			</div>
 		</div>
 
 		{#if loading}
