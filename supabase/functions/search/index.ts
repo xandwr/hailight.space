@@ -3,6 +3,7 @@ import { createClient } from "jsr:@supabase/supabase-js@2";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+const ANON_KEY = Deno.env.get("ANON_KEY") ?? "";
 const OPENROUTER_API_KEY = Deno.env.get("OPENROUTER_API_KEY")!;
 const EXA_API_KEY = Deno.env.get("EXA_API_KEY")!;
 
@@ -239,6 +240,27 @@ Deno.serve(async (req) => {
   }
 
   try {
+    // Verify JWT
+    const authHeader = req.headers.get("Authorization");
+    if (!authHeader?.startsWith("Bearer ")) {
+      return Response.json({ error: "Missing authorization" }, {
+        status: 401,
+        headers: { "Access-Control-Allow-Origin": "*" },
+      });
+    }
+
+    const token = authHeader.replace("Bearer ", "");
+    const authClient = createClient(SUPABASE_URL, ANON_KEY, {
+      global: { headers: { Authorization: `Bearer ${token}` } },
+    });
+    const { data: { user }, error: authErr } = await authClient.auth.getUser();
+    if (authErr || !user) {
+      return Response.json({ error: "Invalid or expired token" }, {
+        status: 401,
+        headers: { "Access-Control-Allow-Origin": "*" },
+      });
+    }
+
     const { query } = await req.json();
     if (!query || typeof query !== "string") {
       return Response.json({ error: "Missing 'query' string" }, { status: 400 });
@@ -247,7 +269,7 @@ Deno.serve(async (req) => {
     // 1. Create query record
     const { data: queryRow, error: queryErr } = await supabase
       .from("queries")
-      .insert({ raw_input: query })
+      .insert({ raw_input: query, user_id: user.id })
       .select("id")
       .single();
 

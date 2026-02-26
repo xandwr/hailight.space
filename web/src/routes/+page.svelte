@@ -1,5 +1,8 @@
 <script lang="ts">
-	const SUPABASE_URL = 'https://xcgzkcwrdfqpkrivnwuo.supabase.co';
+	import { PUBLIC_SUPABASE_PROJECT_URL } from '$env/static/public';
+	import { goto, invalidate } from '$app/navigation';
+
+	let { data } = $props();
 
 	let query = $state('');
 	let loading = $state(false);
@@ -39,9 +42,13 @@
 		result = null;
 
 		try {
-			const resp = await fetch(`${SUPABASE_URL}/functions/v1/search`, {
+			const session = data.session;
+			const resp = await fetch(`${PUBLIC_SUPABASE_PROJECT_URL}/functions/v1/search`, {
 				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
+				headers: {
+					'Content-Type': 'application/json',
+					'Authorization': `Bearer ${session?.access_token}`,
+				},
 				body: JSON.stringify({ query: query.trim() }),
 			});
 
@@ -56,6 +63,11 @@
 		} finally {
 			loading = false;
 		}
+	}
+
+	async function logout() {
+		await data.supabase.auth.signOut();
+		goto('/auth');
 	}
 
 	function handleKeydown(e: KeyboardEvent) {
@@ -94,11 +106,23 @@
 <div class="min-h-screen bg-void text-text">
 	<!-- Header -->
 	<header class="border-b border-edge/50 px-6 py-4">
-		<div class="mx-auto max-w-4xl">
-			<h1 class="text-2xl font-light tracking-wide text-bright">
-				hai<span class="text-accent">light</span>
-			</h1>
-			<p class="mt-1 text-sm text-muted">the space between the stars</p>
+		<div class="mx-auto max-w-4xl flex items-center justify-between">
+			<div>
+				<h1 class="text-2xl font-light tracking-wide text-bright">
+					hai<span class="text-accent">light</span>
+				</h1>
+				<p class="mt-1 text-sm text-muted">the space between the stars</p>
+			</div>
+			<div class="flex items-center gap-4">
+				<span class="text-xs text-muted">{data.user?.email}</span>
+				<button
+					onclick={logout}
+					class="rounded-md border border-edge px-3 py-1.5 text-xs text-muted
+						transition-colors hover:border-edge hover:text-text"
+				>
+					Log out
+				</button>
+			</div>
 		</div>
 	</header>
 

@@ -1,6 +1,7 @@
 {
   "version": "5",
   "specifiers": {
+    "npm:@supabase/ssr@0.8": "0.8.0_@supabase+supabase-js@2.97.0",
     "npm:@supabase/supabase-js@^2.97.0": "2.97.0",
     "npm:@sveltejs/adapter-auto@7": "7.0.1_@sveltejs+kit@2.53.2__@sveltejs+vite-plugin-svelte@6.2.4___svelte@5.53.5____acorn@8.16.0___vite@7.3.1____picomatch@4.0.3__svelte@5.53.5___acorn@8.16.0__typescript@5.9.3__vite@7.3.1___picomatch@4.0.3__acorn@8.16.0_@sveltejs+vite-plugin-svelte@6.2.4__svelte@5.53.5___acorn@8.16.0__vite@7.3.1___picomatch@4.0.3_svelte@5.53.5__acorn@8.16.0_typescript@5.9.3_vite@7.3.1__picomatch@4.0.3",
     "npm:@sveltejs/kit@^2.50.2": "2.53.2_@sveltejs+vite-plugin-svelte@6.2.4__svelte@5.53.5___acorn@8.16.0__vite@7.3.1___picomatch@4.0.3_svelte@5.53.5__acorn@8.16.0_typescript@5.9.3_vite@7.3.1__picomatch@4.0.3_acorn@8.16.0",
@@ -328,6 +329,13 @@
         "ws"
       ]
     },
+    "@supabase/ssr@0.8.0_@supabase+supabase-js@2.97.0": {
+      "integrity": "sha512-/PKk8kNFSs8QvvJ2vOww1mF5/c5W8y42duYtXvkOSe+yZKRgTTZywYG2l41pjhNomqESZCpZtXuWmYjFRMV+dw==",
+      "dependencies": [
+        "@supabase/supabase-js",
+        "cookie@1.1.1"
+      ]
+    },
     "@supabase/storage-js@2.97.0": {
       "integrity": "sha512-9f6NniSBfuMxOWKwEFb+RjJzkfMdJUwv9oHuFJKfe/5VJR8cd90qw68m6Hn0ImGtwG37TUO+QHtoOechxRJ1Yg==",
       "dependencies": [
@@ -365,7 +373,7 @@
         "@sveltejs/vite-plugin-svelte",
         "@types/cookie",
         "acorn",
-        "cookie",
+        "cookie@0.6.0",
         "devalue",
         "esm-env",
         "kleur",
@@ -545,6 +553,9 @@
     },
     "cookie@0.6.0": {
       "integrity": "sha512-U71cyTamuh1CRNCfpGY6to28lxvNwPG4Guz/EVjgf3Jmzv0vlDp1atT9eS5dDjMYHucpHbWns6Lwf3BKz6svdw=="
+    },
+    "cookie@1.1.1": {
+      "integrity": "sha512-ei8Aos7ja0weRpFzJnEA9UHJ/7XQmqglbRwnf2ATjcB9Wq874VKH9kfjjirM6UhU2/E5fFYadylyhFldcqSidQ=="
     },
     "deepmerge@4.3.1": {
       "integrity": "sha512-3sUqbMEc77XqpdNO7FRyRog+eW3ph+GYCbj+rK+uYyRMuwsVy0rMiVtPn+QJlKFvWP/1PYpapqYn0Me2knFn+A=="
@@ -899,6 +910,7 @@
   "workspace": {
     "packageJson": {
       "dependencies": [
+        "npm:@supabase/ssr@0.8",
         "npm:@supabase/supabase-js@^2.97.0",
         "npm:@sveltejs/adapter-auto@7",
         "npm:@sveltejs/kit@^2.50.2",
