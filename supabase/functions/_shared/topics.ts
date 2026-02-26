@@ -1,5 +1,6 @@
 import { SupabaseClient } from "jsr:@supabase/supabase-js@2";
 import { generateTopicLabel } from "./llm.ts";
+import { parseEmbedding } from "./embeddings.ts";
 import { Logger } from "./logger.ts";
 
 export interface TopicResult {
@@ -41,7 +42,7 @@ export async function classifyIntoTopic(
       .single();
 
     if (existing?.embedding) {
-      const oldEmb = existing.embedding as number[];
+      const oldEmb = parseEmbedding(existing.embedding);
       const n = existing.query_count;
       const newCentroid = oldEmb.map(
         (v: number, i: number) => (v * n + queryEmbedding[i]) / (n + 1),

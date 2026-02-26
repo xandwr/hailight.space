@@ -9,6 +9,18 @@ const EMBEDDING_DIMS = 1536;
 export { EMBEDDING_DIMS };
 
 /**
+ * Parse an embedding returned from Supabase/PostgREST.
+ * pgvector columns come back as strings ("[0.1,0.2,...]") through PostgREST,
+ * but may also arrive as number[] if the client library parses them.
+ * This handles both cases safely.
+ */
+export function parseEmbedding(raw: unknown): number[] {
+  if (Array.isArray(raw)) return raw as number[];
+  if (typeof raw === "string") return JSON.parse(raw) as number[];
+  throw new Error(`Cannot parse embedding: unexpected type ${typeof raw}`);
+}
+
+/**
  * Embed an array of texts via OpenRouter. Retries on 5xx/network errors.
  * Returns embeddings in the same order as input texts.
  */
