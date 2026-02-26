@@ -1,0 +1,297 @@
+{
+  "model": "qwen3-embedding:8b",
+  "timestamp": "2026-02-26T04:58:36.802Z",
+  "embedding_dims": 1536,
+  "pair_count": 30,
+  "distributions": {
+    "same_topic": {
+      "mean": 0.8300293361057299,
+      "std": 0.05070993834490602,
+      "median": 0.8274480472067507,
+      "min": 0.758706624918216,
+      "max": 0.9134684040892874,
+      "p25": 0.7928831861591566,
+      "p75": 0.8836599743466523,
+      "sorted": [
+        0.758706624918216,
+        0.7651099346193403,
+        0.7928831861591566,
+        0.8082672309452672,
+        0.8200909659321912,
+        0.8274480472067507,
+        0.8327401219444185,
+        0.8836599743466523,
+        0.897918870896019,
+        0.9134684040892874
+      ]
+    },
+    "adjacent": {
+      "mean": 0.5881819329079567,
+      "std": 0.054345302928189475,
+      "median": 0.5928144421346404,
+      "min": 0.49070474666743435,
+      "max": 0.6620531965733815,
+      "p25": 0.5432730140945067,
+      "p75": 0.6382399172370805,
+      "sorted": [
+        0.49070474666743435,
+        0.5198099259187878,
+        0.5432730140945067,
+        0.5791650974380959,
+        0.579352328926669,
+        0.5928144421346404,
+        0.6283797809459429,
+        0.6382399172370805,
+        0.6480268791430278,
+        0.6620531965733815
+      ]
+    },
+    "unrelated": {
+      "mean": 0.41536060452236184,
+      "std": 0.05298015448006074,
+      "median": 0.4109533212835797,
+      "min": 0.3265955990883902,
+      "max": 0.49933233916226055,
+      "p25": 0.38015253550580724,
+      "p75": 0.4651141060080791,
+      "sorted": [
+        0.3265955990883902,
+        0.3544569292152384,
+        0.38015253550580724,
+        0.4017640758067303,
+        0.40211520018844726,
+        0.4109533212835797,
+        0.4254198233975784,
+        0.4651141060080791,
+        0.4877021155675075,
+        0.49933233916226055
+      ]
+    }
+  },
+  "thresholds": {
+    "topic_clustering": {
+      "value": 0.7103799107457988,
+      "gap_clean": true,
+      "same_min": 0.758706624918216,
+      "adjacent_max": 0.6620531965733815
+    },
+    "source_matching": {
+      "value": 0.5432730140945067,
+      "gap_clean": false,
+      "adjacent_min": 0.49070474666743435,
+      "unrelated_max": 0.49933233916226055
+    }
+  },
+  "all_pairs": [
+    {
+      "similarity": 0.9135,
+      "tier": "same_topic",
+      "note": "same neuroscience topic",
+      "a": "sleep deprivation effects on memory consolidation",
+      "b": "how lack of sleep impairs long-term memory formation"
+    },
+    {
+      "similarity": 0.8979,
+      "tier": "same_topic",
+      "note": "same devops concept, abbrev vs full",
+      "a": "kubernetes horizontal pod autoscaling",
+      "b": "k8s HPA configuration and scaling policies"
+    },
+    {
+      "similarity": 0.8837,
+      "tier": "same_topic",
+      "note": "same phenomenon, different angle",
+      "a": "ocean acidification effects on coral reefs",
+      "b": "coral bleaching from changing ocean pH levels"
+    },
+    {
+      "similarity": 0.8327,
+      "tier": "same_topic",
+      "note": "same biotech, mechanism detail",
+      "a": "mRNA vaccine mechanism of action",
+      "b": "how lipid nanoparticles deliver mRNA vaccines"
+    },
+    {
+      "similarity": 0.8274,
+      "tier": "same_topic",
+      "note": "same research area",
+      "a": "dark matter detection methods",
+      "b": "experiments searching for weakly interacting massive particles"
+    },
+    {
+      "similarity": 0.8201,
+      "tier": "same_topic",
+      "note": "same mechanism, same concern",
+      "a": "CRISPR off-target effects in human cells",
+      "b": "CRISPR gene editing unintended mutations"
+    },
+    {
+      "similarity": 0.8083,
+      "tier": "same_topic",
+      "note": "same environmental health concern",
+      "a": "microplastics in drinking water health effects",
+      "b": "nanoplastic contamination human health risks"
+    },
+    {
+      "similarity": 0.7929,
+      "tier": "same_topic",
+      "note": "same technical concept, different phrasing",
+      "a": "how do transformers handle long context windows",
+      "b": "attention mechanism scaling for long sequences"
+    },
+    {
+      "similarity": 0.7651,
+      "tier": "same_topic",
+      "note": "same language feature",
+      "a": "rust ownership model explained",
+      "b": "borrow checker rules in rust programming"
+    },
+    {
+      "similarity": 0.7587,
+      "tier": "same_topic",
+      "note": "same security domain, specific example",
+      "a": "supply chain attacks in open source software",
+      "b": "npm package hijacking and dependency confusion"
+    },
+    {
+      "similarity": 0.6621,
+      "tier": "adjacent",
+      "note": "both cognition, different mechanisms",
+      "a": "sleep and memory consolidation",
+      "b": "meditation effects on cognitive performance"
+    },
+    {
+      "similarity": 0.648,
+      "tier": "adjacent",
+      "note": "same field (vaccines), different tech",
+      "a": "mRNA vaccine technology",
+      "b": "traditional attenuated virus vaccines"
+    },
+    {
+      "similarity": 0.6382,
+      "tier": "adjacent",
+      "note": "related tech ecosystem, different focus",
+      "a": "kubernetes container orchestration",
+      "b": "docker container security best practices"
+    },
+    {
+      "similarity": 0.6284,
+      "tier": "adjacent",
+      "note": "both water pollution, different pollutants",
+      "a": "microplastics in the ocean",
+      "b": "heavy metal water contamination"
+    },
+    {
+      "similarity": 0.5928,
+      "tier": "adjacent",
+      "note": "same phrase, different domains",
+      "a": "supply chain attacks in software",
+      "b": "physical supply chain logistics optimization"
+    },
+    {
+      "similarity": 0.5794,
+      "tier": "adjacent",
+      "note": "same word, completely different fields",
+      "a": "transformer architecture in NLP",
+      "b": "electrical transformer design principles"
+    },
+    {
+      "similarity": 0.5792,
+      "tier": "adjacent",
+      "note": "both ethics, different domains",
+      "a": "CRISPR ethics in human germline editing",
+      "b": "nuclear energy ethical considerations"
+    },
+    {
+      "similarity": 0.5433,
+      "tier": "adjacent",
+      "note": "same concern (memory), different languages",
+      "a": "rust programming memory safety",
+      "b": "C++ smart pointers and memory management"
+    },
+    {
+      "similarity": 0.5198,
+      "tier": "adjacent",
+      "note": "both environmental, different systems",
+      "a": "ocean acidification research",
+      "b": "air pollution effects on respiratory health"
+    },
+    {
+      "similarity": 0.4993,
+      "tier": "unrelated",
+      "note": "biotech vs puzzles",
+      "a": "mRNA lipid nanoparticle delivery",
+      "b": "competitive speed cubing algorithms"
+    },
+    {
+      "similarity": 0.4907,
+      "tier": "adjacent",
+      "note": "share 'dark' but unrelated fields",
+      "a": "dark matter in cosmology",
+      "b": "dark patterns in UX design"
+    },
+    {
+      "similarity": 0.4877,
+      "tier": "unrelated",
+      "note": "ML vs cooking",
+      "a": "transformer neural network architecture",
+      "b": "sourdough bread fermentation process"
+    },
+    {
+      "similarity": 0.4651,
+      "tier": "unrelated",
+      "note": "biology vs art",
+      "a": "CRISPR gene editing techniques",
+      "b": "Renaissance oil painting techniques"
+    },
+    {
+      "similarity": 0.4254,
+      "tier": "unrelated",
+      "note": "chemistry vs finance",
+      "a": "ocean acidification chemistry",
+      "b": "venture capital term sheet negotiation"
+    },
+    {
+      "similarity": 0.411,
+      "tier": "unrelated",
+      "note": "physics vs music",
+      "a": "dark matter particle physics",
+      "b": "contemporary jazz improvisation theory"
+    },
+    {
+      "similarity": 0.4021,
+      "tier": "unrelated",
+      "note": "devops vs history",
+      "a": "kubernetes cluster management",
+      "b": "ancient Roman military formations"
+    },
+    {
+      "similarity": 0.4018,
+      "tier": "unrelated",
+      "note": "env science vs music theory",
+      "a": "microplastic environmental contamination",
+      "b": "baroque harpsichord tuning temperaments"
+    },
+    {
+      "similarity": 0.3802,
+      "tier": "unrelated",
+      "note": "neuroscience vs aerospace",
+      "a": "sleep deprivation cognitive effects",
+      "b": "orbital mechanics of Mars transfer windows"
+    },
+    {
+      "similarity": 0.3545,
+      "tier": "unrelated",
+      "note": "infosec vs craftsmanship",
+      "a": "npm supply chain security vulnerabilities",
+      "b": "traditional Japanese joinery woodworking"
+    },
+    {
+      "similarity": 0.3266,
+      "tier": "unrelated",
+      "note": "programming vs history",
+      "a": "rust borrow checker semantics",
+      "b": "19th century whaling industry economics"
+    }
+  ]
+}

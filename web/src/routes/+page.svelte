@@ -1,6 +1,8 @@
 <script lang="ts">
 	import { PUBLIC_SUPABASE_PROJECT_URL } from '$env/static/public';
-	import { goto, invalidate } from '$app/navigation';
+	import { goto } from '$app/navigation';
+	import { page } from '$app/stores';
+	import Header from '$lib/components/Header.svelte';
 
 	let { data } = $props();
 
@@ -26,14 +28,41 @@
 		strength: number;
 	}
 
+	interface TopicInfo {
+		id: string;
+		label: string;
+		is_new: boolean;
+	}
+
 	interface SearchResult {
 		query_id: string;
+		topic: TopicInfo;
 		sources: Source[];
 		connections: Connection[];
+		cross_query_connections: {
+			current_source: string;
+			related_source: string;
+			related_url: string;
+			from_query: string;
+			similarity: number;
+		}[];
 		synthesis: string;
 		gaps: string[];
 		follow_up_questions: string[];
 	}
+
+	// Handle ?q= param for pre-filled searches from follow-up clicks
+	$effect(() => {
+		const q = $page.url.searchParams.get('q');
+		if (q && !result && !loading) {
+			query = q;
+			search();
+			// Clean URL
+			const url = new URL($page.url);
+			url.searchParams.delete('q');
+			history.replaceState({}, '', url.toString());
+		}
+	});
 
 	async function search() {
 		if (!query.trim() || loading) return;
@@ -63,11 +92,6 @@
 		} finally {
 			loading = false;
 		}
-	}
-
-	async function logout() {
-		await data.supabase.auth.signOut();
-		goto('/auth');
 	}
 
 	function handleKeydown(e: KeyboardEvent) {
@@ -104,29 +128,8 @@
 </script>
 
 <div class="min-h-screen bg-void text-text">
-	<!-- Header -->
-	<header class="border-b border-edge/50 px-6 py-4">
-		<div class="mx-auto max-w-4xl flex items-center justify-between">
-			<div>
-				<h1 class="text-2xl font-light tracking-wide text-bright">
-					hai<span class="text-accent">light</span>
-				</h1>
-				<p class="mt-1 text-sm text-muted">the space between the stars</p>
-			</div>
-			<div class="flex items-center gap-4">
-				<span class="text-xs text-muted">{data.user?.email}</span>
-				<button
-					onclick={logout}
-					class="rounded-md border border-edge px-3 py-1.5 text-xs text-muted
-						transition-colors hover:border-edge hover:text-text"
-				>
-					Log out
-				</button>
-			</div>
-		</div>
-	</header>
+	<Header user={data.user} supabase={data.supabase} />
 
-	<!-- Search -->
 	<main class="mx-auto max-w-4xl px-6 py-12">
 		<div class="relative">
 			<input
@@ -165,13 +168,63 @@
 		{/if}
 
 		{#if result}
+			<!-- Topic badge -->
+			{#if result.topic}
+				<div class="mt-6 flex items-center gap-3">
+					<a
+						href="/dashboard/topic/{result.topic.id}"
+						class="inline-flex items-center gap-2 rounded-full border border-accent/30 bg-accent/5
+							px-4 py-1.5 text-sm text-accent transition-all
+							hover:bg-accent/10 hover:border-accent/50 hover:shadow-[0_0_12px_rgba(124,111,247,0.15)]"
+					>
+						<span class="text-xs">&#10022;</span>
+						{result.topic.label}
+						{#if result.topic.is_new}
+							<span class="rounded-full bg-accent/20 px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wider">new</span>
+						{/if}
+					</a>
+				</div>
+			{/if}
+
 			<!-- Synthesis -->
-			<section class="mt-10">
+			<section class="mt-6">
 				<h2 class="mb-3 text-xs font-semibold uppercase tracking-widest text-muted">Synthesis</h2>
 				<div class="rounded-lg border border-edge bg-deep p-5 text-[15px] leading-relaxed text-text">
 					{result.synthesis}
 				</div>
 			</section>
+
+			<!-- Cross-query connections -->
+			{#if result.cross_query_connections?.length > 0}
+				<section class="mt-8">
+					<h2 class="mb-3 text-xs font-semibold uppercase tracking-widest text-muted">
+						<span class="text-accent">&#10022;</span> Echoes from past research
+					</h2>
+					<div class="space-y-2">
+						{#each result.cross_query_connections as cq}
+							<div class="rounded-lg border border-accent/15 bg-accent/3 p-4">
+								<div class="flex items-start justify-between gap-3">
+									<div class="min-w-0">
+										<p class="text-sm text-text/90">
+											<span class="font-medium text-bright">{cq.current_source}</span>
+											<span class="text-muted mx-1">&harr;</span>
+											<a href={cq.related_url} target="_blank" rel="noopener noreferrer"
+												class="font-medium text-accent hover:text-accent-glow transition-colors"
+											>{cq.related_source}</a>
+										</p>
+										<p class="mt-1 text-xs text-muted">
+											from &ldquo;{cq.from_query}&rdquo;
+										</p>
+									</div>
+									<span class="shrink-0 text-xs text-accent/70">
+										{Math.round(cq.similarity * 100)}%
+									</span>
+								</div>
+							</div>
+						{/each}
+					</div>
+				</section>
+			{/if}
 
 			<!-- Connections -->
 			{#if result.connections.length > 0}
