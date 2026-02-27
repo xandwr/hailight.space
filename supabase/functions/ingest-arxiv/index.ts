@@ -7,6 +7,7 @@ import { getServiceClient } from "../_shared/auth.ts";
 import { embedTexts } from "../_shared/embeddings.ts";
 import { withRetry, isRetryable } from "../_shared/retry.ts";
 import { ExternalServiceError } from "../_shared/errors.ts";
+import { logCronStart, logCronEnd } from "../_shared/cron.ts";
 
 const DAEMON_SECRET = Deno.env.get("DAEMON_SECRET") ?? "";
 const db = getServiceClient();
@@ -292,6 +293,7 @@ Deno.serve(async (req: Request) => {
   const requestId = req.headers.get("x-request-id") ?? createRequestId();
   const log = new Logger({ request_id: requestId, endpoint: "ingest-arxiv" });
 
+  let execId: bigint | null = null;
   try {
     // Auth: daemon secret only
     const authHeader = req.headers.get("Authorization");
@@ -309,6 +311,7 @@ Deno.serve(async (req: Request) => {
 
     // Per-set harvest state key (e.g. "arxiv:cs", "arxiv:math")
     const stateKey = `arxiv:${arxivSet}`;
+    execId = await logCronStart(db, `ingest-arxiv:${arxivSet}`);
 
     // Load harvest state (auto-resume from where we left off)
     const { data: state } = await db
@@ -387,12 +390,15 @@ Deno.serve(async (req: Request) => {
     };
 
     log.info("harvest_complete", response);
+    await logCronEnd(db, execId, "completed", 200, response);
 
     return corsResponse(response, 200, { "x-request-id": requestId });
   } catch (err) {
     log.error("harvest_failed", err);
+    const errMsg = err instanceof Error ? err.message : String(err);
 
     if (err instanceof AppError) {
+      await logCronEnd(db, execId, "failed", err.statusCode, undefined, errMsg);
       return corsResponse(
         { error: { code: err.code, message: err.message } },
         err.statusCode,
@@ -400,6 +406,7 @@ Deno.serve(async (req: Request) => {
       );
     }
 
+    await logCronEnd(db, execId, "failed", 500, undefined, errMsg);
     return corsResponse(
       { error: { code: "INTERNAL_ERROR", message: "Harvest failed" } },
       500,

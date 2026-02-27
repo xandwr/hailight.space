@@ -41,14 +41,28 @@
 		created_at: string;
 	}
 
-	interface CronJob {
-		bridge_query: string;
+	interface CronHealth {
+		job_name: string;
+		last_run_at: string | null;
+		last_status: string;
+		last_duration_ms: number | null;
+		last_error: string | null;
+		success_count_24h: number;
+		fail_count_24h: number;
+		success_count_7d: number;
+		fail_count_7d: number;
+		avg_duration_ms_24h: number | null;
+		expected_interval_mins: number;
+	}
+
+	interface CronRecent {
+		job_name: string;
 		status: string;
-		sources_found: number;
-		bridge_score_before: number;
-		bridge_score_after: number;
-		created_at: string;
+		http_status: number | null;
+		started_at: string;
 		completed_at: string | null;
+		duration_ms: number | null;
+		result: Record<string, unknown> | null;
 		error: string | null;
 	}
 
@@ -65,7 +79,8 @@
 		research_directions: ResearchSummary[];
 		user_stats: UserStats[];
 		recent_events: RecentEvent[];
-		cron_health: CronJob[];
+		cron_health: CronHealth[];
+		cron_recent: CronRecent[];
 		top_topics: TopicInfo[];
 		elapsed_ms: number;
 	}
@@ -147,6 +162,35 @@
 		if (n >= 1_000) return `${(n / 1_000).toFixed(1)}K`;
 		return n.toString();
 	}
+
+	function formatDuration(ms: number | null): string {
+		if (ms === null) return '—';
+		if (ms < 1000) return `${ms}ms`;
+		const secs = ms / 1000;
+		if (secs < 60) return `${secs.toFixed(1)}s`;
+		const mins = Math.floor(secs / 60);
+		const remainSecs = Math.round(secs % 60);
+		return `${mins}m${remainSecs}s`;
+	}
+
+	function isStale(job: CronHealth): boolean {
+		if (!job.last_run_at) return true;
+		const msSince = Date.now() - new Date(job.last_run_at).getTime();
+		return msSince > job.expected_interval_mins * 60_000 * 2;
+	}
+
+	function cronStatusColor(status: string): string {
+		switch (status) {
+			case 'completed': return 'text-agree';
+			case 'failed': return 'text-contradict';
+			case 'timeout': return 'text-contradict';
+			case 'running': return 'text-gap';
+			case 'never': return 'text-muted/50';
+			default: return 'text-text';
+		}
+	}
+
+	let expandedJob: string | null = $state(null);
 </script>
 
 <div class="min-h-screen bg-void text-text">
@@ -238,61 +282,113 @@
 				</section>
 			</div>
 
-			<!-- Research directions + Cron health -->
-			<div class="mb-8 grid gap-6 lg:grid-cols-2">
-				<!-- Research directions summary -->
-				<section>
-					<h3 class="mb-3 text-xs font-semibold uppercase tracking-widest text-muted">Auto-research summary</h3>
-					<div class="rounded-lg border border-edge bg-deep p-4">
-						{#if stats.research_directions.length === 0}
-							<p class="text-sm text-muted">No research directions yet.</p>
-						{:else}
-							{#each stats.research_directions as rd}
-								<div class="flex items-center justify-between py-2 {stats.research_directions.indexOf(rd) > 0 ? 'border-t border-edge/50' : ''}">
-									<span class="text-sm {statusColor(rd.status)} capitalize">{rd.status}</span>
-									<div class="flex items-center gap-4 text-xs text-muted">
-										<span>{rd.count} runs</span>
-										<span>avg {rd.avg_sources_found ?? 0} sources</span>
-										<span class="{(rd.avg_bridge_improvement ?? 0) > 0 ? 'text-agree' : 'text-muted'}">
-											{(rd.avg_bridge_improvement ?? 0) > 0 ? '+' : ''}{((rd.avg_bridge_improvement ?? 0) * 100).toFixed(1)}% bridge
-										</span>
-									</div>
-								</div>
-							{/each}
-						{/if}
-					</div>
-				</section>
-
-				<!-- Recent cron jobs -->
-				<section>
-					<h3 class="mb-3 text-xs font-semibold uppercase tracking-widest text-muted">Recent research jobs</h3>
-					<div class="space-y-2 max-h-[300px] overflow-y-auto">
-						{#each stats.cron_health as job}
-							<div class="rounded-lg border border-edge bg-deep px-4 py-3">
-								<div class="flex items-center justify-between mb-1">
-									<span class="text-xs {statusColor(job.status)} capitalize">{job.status}</span>
-									<span class="text-xs text-muted">{timeAgo(job.completed_at ?? job.created_at)}</span>
-								</div>
-								<p class="text-sm text-text/80 truncate">{job.bridge_query}</p>
-								<div class="mt-1 flex gap-3 text-xs text-muted">
-									<span>{job.sources_found} sources</span>
-									{#if job.bridge_score_after > job.bridge_score_before}
-										<span class="text-agree">
-											bridge {(job.bridge_score_before * 100).toFixed(0)}% &rarr; {(job.bridge_score_after * 100).toFixed(0)}%
-										</span>
-									{/if}
-								</div>
-								{#if job.error}
-									<p class="mt-1 text-xs text-contradict truncate">{job.error}</p>
+			<!-- Cron Health -->
+			<section class="mb-8">
+				<h3 class="mb-3 text-xs font-semibold uppercase tracking-widest text-muted">Cron health</h3>
+				<div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+					{#each stats.cron_health as job}
+						{@const stale = isStale(job)}
+						<button
+							class="rounded-lg border bg-deep p-4 text-left transition-all
+								{stale ? 'border-contradict/40' : 'border-edge'}
+								hover:border-accent/30"
+							onclick={() => expandedJob = expandedJob === job.job_name ? null : job.job_name}
+						>
+							<div class="flex items-center justify-between mb-2">
+								<span class="text-sm font-medium text-bright">{job.job_name}</span>
+								{#if stale}
+									<span class="text-xs text-contradict font-medium">STALE</span>
+								{:else}
+									<span class="text-xs {cronStatusColor(job.last_status)} capitalize">{job.last_status}</span>
 								{/if}
 							</div>
+
+							<div class="grid grid-cols-2 gap-y-1.5 text-xs">
+								<div class="text-muted">Last run</div>
+								<div class="text-right text-text">{timeAgo(job.last_run_at)}</div>
+
+								<div class="text-muted">Duration</div>
+								<div class="text-right text-text">{formatDuration(job.last_duration_ms)}</div>
+
+								<div class="text-muted">24h</div>
+								<div class="text-right">
+									<span class="text-agree">{job.success_count_24h}</span>
+									{#if job.fail_count_24h > 0}
+										<span class="text-muted">/</span>
+										<span class="text-contradict">{job.fail_count_24h}</span>
+									{/if}
+								</div>
+
+								<div class="text-muted">7d</div>
+								<div class="text-right">
+									<span class="text-agree">{job.success_count_7d}</span>
+									{#if job.fail_count_7d > 0}
+										<span class="text-muted">/</span>
+										<span class="text-contradict">{job.fail_count_7d}</span>
+									{/if}
+								</div>
+
+								{#if job.avg_duration_ms_24h}
+									<div class="text-muted">Avg</div>
+									<div class="text-right text-text">{formatDuration(job.avg_duration_ms_24h)}</div>
+								{/if}
+							</div>
+
+							{#if job.last_error}
+								<p class="mt-2 text-xs text-contradict truncate" title={job.last_error}>{job.last_error}</p>
+							{/if}
+
+							<!-- Expanded: recent executions for this job -->
+							{#if expandedJob === job.job_name}
+								{@const jobRecent = (stats.cron_recent ?? []).filter(r => r.job_name === job.job_name)}
+								{#if jobRecent.length > 0}
+									<div class="mt-3 border-t border-edge/50 pt-2 space-y-1.5">
+										<div class="text-xs text-muted font-medium mb-1">Recent runs</div>
+										{#each jobRecent as run}
+											<div class="flex items-center justify-between text-xs gap-2">
+												<span class="{cronStatusColor(run.status)} capitalize">{run.status}</span>
+												<span class="text-muted truncate flex-1 text-center">{formatDuration(run.duration_ms)}</span>
+												<span class="text-muted">{timeAgo(run.started_at)}</span>
+											</div>
+											{#if run.error}
+												<p class="text-xs text-contradict/70 truncate pl-2">{run.error}</p>
+											{/if}
+										{/each}
+									</div>
+								{:else}
+									<p class="mt-3 border-t border-edge/50 pt-2 text-xs text-muted">No execution history yet.</p>
+								{/if}
+							{/if}
+						</button>
+					{/each}
+				</div>
+				{#if stats.cron_health.length === 0}
+					<p class="text-sm text-muted mt-2">No cron jobs configured.</p>
+				{/if}
+			</section>
+
+			<!-- Research directions summary -->
+			<section class="mb-8">
+				<h3 class="mb-3 text-xs font-semibold uppercase tracking-widest text-muted">Auto-research summary</h3>
+				<div class="rounded-lg border border-edge bg-deep p-4">
+					{#if stats.research_directions.length === 0}
+						<p class="text-sm text-muted">No research directions yet.</p>
+					{:else}
+						{#each stats.research_directions as rd}
+							<div class="flex items-center justify-between py-2 {stats.research_directions.indexOf(rd) > 0 ? 'border-t border-edge/50' : ''}">
+								<span class="text-sm {statusColor(rd.status)} capitalize">{rd.status}</span>
+								<div class="flex items-center gap-4 text-xs text-muted">
+									<span>{rd.count} runs</span>
+									<span>avg {rd.avg_sources_found ?? 0} sources</span>
+									<span class="{(rd.avg_bridge_improvement ?? 0) > 0 ? 'text-agree' : 'text-muted'}">
+										{(rd.avg_bridge_improvement ?? 0) > 0 ? '+' : ''}{((rd.avg_bridge_improvement ?? 0) * 100).toFixed(1)}% bridge
+									</span>
+								</div>
+							</div>
 						{/each}
-						{#if stats.cron_health.length === 0}
-							<p class="text-sm text-muted px-1">No research jobs yet.</p>
-						{/if}
-					</div>
-				</section>
-			</div>
+					{/if}
+				</div>
+			</section>
 
 			<!-- Topics -->
 			<section class="mb-8">

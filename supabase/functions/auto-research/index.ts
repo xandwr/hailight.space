@@ -11,6 +11,7 @@ import { classifyIntoTopic } from "../_shared/topics.ts";
 import { findRelatedSources } from "../_shared/similarity.ts";
 import { withRetry, resilientFetch, isRetryable } from "../_shared/retry.ts";
 import { ExternalServiceError } from "../_shared/errors.ts";
+import { logCronStart, logCronEnd } from "../_shared/cron.ts";
 
 const OPENROUTER_API_KEY = Deno.env.get("OPENROUTER_API_KEY")!;
 const DAEMON_SECRET = Deno.env.get("DAEMON_SECRET") ?? "";
@@ -290,6 +291,7 @@ Deno.serve(async (req) => {
     );
   }
 
+  let execId: bigint | null = null;
   try {
     // --- Auth: daemon secret or service role ---
     // This function is NOT user-facing. It's called by cron/scheduler.
@@ -305,6 +307,7 @@ Deno.serve(async (req) => {
     }
 
     log.info("daemon_start");
+    execId = await logCronStart(db, "auto-research");
 
     // --- Parse options ---
     let maxDirections = 3;
@@ -324,12 +327,10 @@ Deno.serve(async (req) => {
     if (dirErr) throw dirErr;
 
     if (!directions?.length) {
+      const noGapResult = { message: "No research directions found", directions_processed: 0 };
       log.info("daemon_done", { reason: "no_gaps_found", elapsed_ms: Math.round(performance.now() - started) });
-      return corsResponse(
-        { message: "No research directions found", directions_processed: 0 },
-        200,
-        { "x-request-id": requestId },
-      );
+      await logCronEnd(db, execId, "completed", 200, noGapResult);
+      return corsResponse(noGapResult, 200, { "x-request-id": requestId });
     }
 
     log.info("directions_identified", {
@@ -392,26 +393,28 @@ Deno.serve(async (req) => {
       elapsed_ms: elapsed,
     });
 
-    return corsResponse(
-      {
-        directions_processed: results.length,
-        completed,
-        total_sources_added: totalSources,
-        results,
-        elapsed_ms: elapsed,
-      },
-      200,
-      { "x-request-id": requestId },
-    );
+    const responseData = {
+      directions_processed: results.length,
+      completed,
+      total_sources_added: totalSources,
+      results,
+      elapsed_ms: elapsed,
+    };
+    await logCronEnd(db, execId, "completed", 200, responseData);
+
+    return corsResponse(responseData, 200, { "x-request-id": requestId });
   } catch (err) {
     const elapsed = Math.round(performance.now() - started);
+    const errMsg = err instanceof Error ? err.message : String(err);
 
     if (err instanceof AppError) {
       log.warn("daemon_failed", { status: err.statusCode, code: err.code, elapsed_ms: elapsed });
+      await logCronEnd(db, execId, "failed", err.statusCode, undefined, errMsg);
       return corsResponse(err.toJSON(), err.statusCode, { "x-request-id": requestId });
     }
 
     log.error("daemon_unhandled_error", err, { elapsed_ms: elapsed });
+    await logCronEnd(db, execId, "failed", 500, undefined, errMsg);
     return corsResponse(
       { error: { code: "INTERNAL_ERROR", message: "An internal error occurred" } },
       500,

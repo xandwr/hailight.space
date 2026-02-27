@@ -4,6 +4,7 @@ import { AppError } from "../_shared/errors.ts";
 import { Logger, createRequestId } from "../_shared/logger.ts";
 import { corsResponse, corsOptions } from "../_shared/cors.ts";
 import { getServiceClient } from "../_shared/auth.ts";
+import { logCronStart, logCronEnd } from "../_shared/cron.ts";
 
 const DAEMON_SECRET = Deno.env.get("DAEMON_SECRET") ?? "";
 const db = getServiceClient();
@@ -91,6 +92,7 @@ Deno.serve(async (req: Request) => {
   const requestId = req.headers.get("x-request-id") ?? createRequestId();
   const log = new Logger({ request_id: requestId, endpoint: "dedup-sources" });
 
+  let execId: bigint | null = null;
   try {
     // Auth: daemon secret only
     const authHeader = req.headers.get("Authorization");
@@ -105,6 +107,7 @@ Deno.serve(async (req: Request) => {
     const maxPairs: number = Math.min(body.max_pairs ?? 100, 500);
     const dryRun: boolean = body.dry_run ?? false;
 
+    execId = await logCronStart(db, "dedup-sources");
     log.info("dedup_start", {
       similarity_threshold: similarityThreshold,
       batch_size: batchSize,
@@ -179,11 +182,14 @@ Deno.serve(async (req: Request) => {
     };
 
     log.info("dedup_complete", response);
+    await logCronEnd(db, execId, "completed", 200, response);
     return corsResponse(response, 200, { "x-request-id": requestId });
   } catch (err) {
     log.error("dedup_failed", err);
+    const errMsg = err instanceof Error ? err.message : String(err);
 
     if (err instanceof AppError) {
+      await logCronEnd(db, execId, "failed", err.statusCode, undefined, errMsg);
       return corsResponse(
         { error: { code: err.code, message: err.message } },
         err.statusCode,
@@ -191,6 +197,7 @@ Deno.serve(async (req: Request) => {
       );
     }
 
+    await logCronEnd(db, execId, "failed", 500, undefined, errMsg);
     return corsResponse(
       { error: { code: "INTERNAL_ERROR", message: "Dedup sweep failed" } },
       500,

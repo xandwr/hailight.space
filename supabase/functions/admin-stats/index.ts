@@ -43,6 +43,7 @@ Deno.serve(async (req) => {
       recentEventsResult,
       cronHealthResult,
       topTopicsResult,
+      cronRecentResult,
     ] = await Promise.all([
       // Harvest state
       db.from("harvest_state").select("*"),
@@ -63,17 +64,18 @@ Deno.serve(async (req) => {
         .order("created_at", { ascending: false })
         .limit(50),
 
-      // Cron health: latest research_directions by completed_at
-      db
-        .from("research_directions")
-        .select(
-          "bridge_query, status, sources_found, bridge_score_before, bridge_score_after, created_at, completed_at, error",
-        )
-        .order("created_at", { ascending: false })
-        .limit(10),
+      // Cron health: aggregated per-job stats
+      db.rpc("admin_cron_health"),
 
       // Top topics by source count
       db.rpc("admin_top_topics"),
+
+      // Recent cron executions (last 20)
+      db
+        .from("cron_executions")
+        .select("job_name, status, http_status, started_at, completed_at, duration_ms, result, error")
+        .order("started_at", { ascending: false })
+        .limit(20),
     ]);
 
     const elapsed = Math.round(performance.now() - started);
@@ -87,6 +89,7 @@ Deno.serve(async (req) => {
         user_stats: userStatsResult.data ?? [],
         recent_events: recentEventsResult.data ?? [],
         cron_health: cronHealthResult.data ?? [],
+        cron_recent: cronRecentResult.data ?? [],
         top_topics: topTopicsResult.data ?? [],
         elapsed_ms: elapsed,
       },

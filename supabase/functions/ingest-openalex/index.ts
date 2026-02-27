@@ -7,6 +7,7 @@ import { getServiceClient } from "../_shared/auth.ts";
 import { embedTexts } from "../_shared/embeddings.ts";
 import { withRetry, isRetryable } from "../_shared/retry.ts";
 import { ExternalServiceError } from "../_shared/errors.ts";
+import { logCronStart, logCronEnd } from "../_shared/cron.ts";
 
 const DAEMON_SECRET = Deno.env.get("DAEMON_SECRET") ?? "";
 const OPENALEX_API_KEY = Deno.env.get("OPENALEX_API_KEY") ?? "";
@@ -314,6 +315,7 @@ Deno.serve(async (req: Request) => {
     endpoint: "ingest-openalex",
   });
 
+  let execId: bigint | null = null;
   try {
     // Auth: daemon secret only
     const authHeader = req.headers.get("Authorization");
@@ -324,6 +326,7 @@ Deno.serve(async (req: Request) => {
 
     const body = req.method === "POST" ? await req.json() : {};
     const maxPages: number = Math.min(body.max_pages ?? 8, 20);
+    execId = await logCronStart(db, "ingest-openalex");
 
     // Load harvest state (maybeSingle: no error if row doesn't exist yet)
     const { data: state } = await db
@@ -424,12 +427,15 @@ Deno.serve(async (req: Request) => {
     };
 
     log.info("harvest_complete", response);
+    await logCronEnd(db, execId, "completed", 200, response);
 
     return corsResponse(response, 200, { "x-request-id": requestId });
   } catch (err) {
     log.error("harvest_failed", err);
+    const errMsg = err instanceof Error ? err.message : String(err);
 
     if (err instanceof AppError) {
+      await logCronEnd(db, execId, "failed", err.statusCode, undefined, errMsg);
       return corsResponse(
         { error: { code: err.code, message: err.message } },
         err.statusCode,
@@ -437,6 +443,7 @@ Deno.serve(async (req: Request) => {
       );
     }
 
+    await logCronEnd(db, execId, "failed", 500, undefined, errMsg);
     return corsResponse(
       { error: { code: "INTERNAL_ERROR", message: "Harvest failed" } },
       500,
