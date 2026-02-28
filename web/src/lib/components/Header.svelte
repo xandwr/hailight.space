@@ -29,6 +29,13 @@
 					Search
 				</a>
 				<a
+					href="/chat"
+					class="rounded-md px-3 py-1.5 text-sm transition-colors
+						{currentPath.startsWith('/chat') ? 'text-bright bg-surface' : 'text-muted hover:text-text'}"
+				>
+					Chat
+				</a>
+				<a
 					href="/dashboard"
 					class="rounded-md px-3 py-1.5 text-sm transition-colors
 						{currentPath === '/dashboard' ? 'text-bright bg-surface' : 'text-muted hover:text-text'}"
