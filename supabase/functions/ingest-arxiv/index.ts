@@ -278,6 +278,30 @@ async function embedAndInsertBatch(
   return { inserted: totalInserted, skipped: papers.length - newPapers.length };
 }
 
+// Time budget: stop processing before the edge function 150s wall clock limit.
+// Leave 10s buffer for final state persist + response.
+const TIME_BUDGET_MS = 140_000;
+
+/**
+ * Persist harvest state after each page so progress survives timeouts.
+ */
+async function saveHarvestState(
+  stateKey: string,
+  resumptionToken: string | null,
+  fromDate: string | null,
+  prevTotalIngested: number,
+  newInserted: number,
+): Promise<void> {
+  await db.from("harvest_state").upsert({
+    source_type: stateKey,
+    resumption_token: resumptionToken,
+    last_from_date: fromDate,
+    last_harvested_at: new Date().toISOString(),
+    total_ingested: prevTotalIngested + newInserted,
+    is_complete: !resumptionToken,
+  }, { onConflict: "source_type" });
+}
+
 /**
  * Main handler: harvest arXiv papers via OAI-PMH.
  *
@@ -290,6 +314,7 @@ async function embedAndInsertBatch(
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") return corsOptions();
 
+  const startTime = Date.now();
   const requestId = req.headers.get("x-request-id") ?? createRequestId();
   const log = new Logger({ request_id: requestId, endpoint: "ingest-arxiv" });
 
@@ -324,20 +349,31 @@ Deno.serve(async (req: Request) => {
       body.resumption_token ?? state?.resumption_token ?? null;
     const fromDate: string | null =
       body.from_date ?? (state?.is_complete ? new Date().toISOString().slice(0, 10) : state?.last_from_date) ?? null;
+    const prevTotalIngested: number = state?.total_ingested ?? 0;
 
     log.info("harvest_start", {
       set: arxivSet,
       has_token: !!resumptionToken,
       from_date: fromDate,
       max_pages: maxPages,
+      prev_total: prevTotalIngested,
     });
 
     let totalInserted = 0;
     let totalSkipped = 0;
     let pagesProcessed = 0;
     let completeListSize: number | null = null;
+    let stoppedByTimeBudget = false;
 
     for (let page = 0; page < maxPages; page++) {
+      // Check time budget before starting a new page
+      const elapsed = Date.now() - startTime;
+      if (elapsed > TIME_BUDGET_MS) {
+        log.info("time_budget_exceeded", { elapsed_ms: elapsed, pages_done: pagesProcessed });
+        stoppedByTimeBudget = true;
+        break;
+      }
+
       // Fetch page from arXiv
       const result = await fetchArxivPage(resumptionToken, fromDate, arxivSet, log);
 
@@ -353,11 +389,15 @@ Deno.serve(async (req: Request) => {
 
       resumptionToken = result.resumptionToken;
 
+      // Persist state after EVERY page so progress survives timeouts
+      await saveHarvestState(stateKey, resumptionToken, fromDate, prevTotalIngested, totalInserted);
+
       log.info("page_complete", {
         page: page + 1,
         inserted,
         skipped,
         has_more: !!resumptionToken,
+        elapsed_ms: Date.now() - startTime,
       });
 
       // No more pages
@@ -369,16 +409,6 @@ Deno.serve(async (req: Request) => {
       }
     }
 
-    // Persist harvest state for next invocation (per-set key)
-    await db.from("harvest_state").upsert({
-      source_type: stateKey,
-      resumption_token: resumptionToken,
-      last_from_date: fromDate,
-      last_harvested_at: new Date().toISOString(),
-      total_ingested: (state?.total_ingested ?? 0) + totalInserted,
-      is_complete: !resumptionToken,
-    }, { onConflict: "source_type" });
-
     const response = {
       set: arxivSet,
       pages_processed: pagesProcessed,
@@ -387,6 +417,8 @@ Deno.serve(async (req: Request) => {
       complete_list_size: completeListSize,
       resumption_token: resumptionToken,
       has_more: !!resumptionToken,
+      stopped_by_time_budget: stoppedByTimeBudget,
+      elapsed_ms: Date.now() - startTime,
     };
 
     log.info("harvest_complete", response);
