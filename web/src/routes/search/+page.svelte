@@ -118,6 +118,12 @@
 		}
 	}
 
+	function autoResize(e: Event) {
+		const el = e.target as HTMLTextAreaElement;
+		el.style.height = 'auto';
+		el.style.height = el.scrollHeight + 'px';
+	}
+
 	function relationshipColor(rel: string): string {
 		const colors: Record<string, string> = {
 			agrees: 'text-agree',
@@ -169,21 +175,22 @@
 
 	<main class="mx-auto max-w-4xl px-6 py-12">
 		<div class="relative">
-			<input
-				type="text"
+			<textarea
 				bind:value={query}
 				onkeydown={handleKeydown}
+				oninput={autoResize}
 				placeholder="What do you want to explore?"
 				disabled={loading}
-				class="w-full rounded-lg border border-edge bg-surface px-5 py-4 text-lg text-bright
+				rows="1"
+				class="w-full resize-none overflow-hidden rounded-lg border border-edge bg-surface px-5 py-4 pr-24 text-lg text-bright
 					placeholder-muted outline-none transition-colors
 					focus:border-accent/50 focus:ring-1 focus:ring-accent/25
 					disabled:opacity-50"
-			/>
+			></textarea>
 			<button
 				onclick={search}
 				disabled={loading || !query.trim()}
-				class="absolute right-2 top-1/2 -translate-y-1/2 rounded-md bg-accent px-4 py-2
+				class="absolute bottom-3 right-3 rounded-md bg-accent px-4 py-2
 					text-sm font-medium text-bright transition-opacity
 					hover:bg-accent-glow disabled:opacity-30"
 			>
