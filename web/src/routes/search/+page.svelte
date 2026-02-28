@@ -182,8 +182,9 @@
 				placeholder="What do you want to explore?"
 				disabled={loading}
 				rows="1"
-				class="w-full resize-none overflow-hidden rounded-lg border border-edge bg-surface px-5 py-4 pr-24 text-lg text-bright
-					placeholder-muted outline-none transition-colors
+				style="field-sizing: content; max-height: 200px;"
+				class="w-full resize-none rounded-lg border border-edge bg-surface px-5 py-4 pr-24 text-lg text-bright
+					placeholder-muted outline-none transition-colors overflow-y-auto
 					focus:border-accent/50 focus:ring-1 focus:ring-accent/25
 					disabled:opacity-50"
 			></textarea>
