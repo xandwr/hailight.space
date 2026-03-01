@@ -91,7 +91,7 @@
 	}
 
 	function searchFollowUp(q: string) {
-		goto(`/?q=${encodeURIComponent(q)}`);
+		goto(`/search?q=${encodeURIComponent(q)}`);
 	}
 </script>
 
