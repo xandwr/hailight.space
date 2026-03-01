@@ -1,5 +1,5 @@
 <script lang="ts">
-	import favicon from '$lib/assets/favicon.svg';
+	import favicon from '$lib/assets/hailight_favicon.svg';
 	import { invalidate } from '$app/navigation';
 	import { onMount } from 'svelte';
 	import { initAnalytics, track } from '$lib/analytics';
