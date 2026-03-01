@@ -1,3 +1,11 @@
-# allow crawling everything by default
 User-agent: *
-Disallow:
+Allow: /
+Allow: /about
+Disallow: /auth
+Disallow: /admin
+Disallow: /search
+Disallow: /chat
+Disallow: /dashboard
+Disallow: /insights
+
+Sitemap: https://hailight.space/sitemap.xml

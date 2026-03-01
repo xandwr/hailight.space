@@ -15,7 +15,7 @@
 <header class="border-b border-edge/50 px-6 py-4">
 	<div class="mx-auto max-w-5xl flex items-center justify-between">
 		<div class="flex items-center gap-8">
-			<a href="/search" class="group">
+			<a href="/" class="group">
 				<h1 class="text-2xl font-light tracking-wide text-bright">
 					hai<span class="text-accent group-hover:text-accent-glow transition-colors">light</span>
 				</h1>

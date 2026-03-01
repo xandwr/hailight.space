@@ -12,7 +12,56 @@
 
 <svelte:head>
 	<title>Hailight — the space between the stars</title>
-	<meta name="description" content="A research platform that surfaces connections, contradictions, and gaps across sources — not just top results." />
+	<meta name="description" content="A research platform that surfaces connections, contradictions, and gaps across sources. Searches arXiv, OpenAlex, and the web, then maps relationships using vector embeddings." />
+	<link rel="canonical" href="https://hailight.space" />
+
+	<!-- Open Graph -->
+	<meta property="og:type" content="website" />
+	<meta property="og:url" content="https://hailight.space" />
+	<meta property="og:title" content="Hailight — the space between the stars" />
+	<meta property="og:description" content="A research platform that surfaces connections, contradictions, and gaps across sources. Searches arXiv, OpenAlex, and the web, then maps relationships using vector embeddings." />
+	<meta property="og:site_name" content="Hailight" />
+
+	<!-- Twitter -->
+	<meta name="twitter:card" content="summary" />
+	<meta name="twitter:title" content="Hailight — the space between the stars" />
+	<meta name="twitter:description" content="Research platform that maps connections, contradictions, and gaps across academic and web sources using vector embeddings." />
+
+	<!-- JSON-LD -->
+	{@html `<script type="application/ld+json">${JSON.stringify({
+		"@context": "https://schema.org",
+		"@type": "WebApplication",
+		"name": "Hailight",
+		"url": "https://hailight.space",
+		"description": "A research platform that surfaces connections, contradictions, and gaps across sources. Indexes arXiv and OpenAlex papers, embeds them with Qwen3 at 1536 dimensions, and uses cosine similarity to map semantic bridges, topic gaps, and contradictions across your research.",
+		"applicationCategory": "Research Tool",
+		"operatingSystem": "Web",
+		"offers": {
+			"@type": "Offer",
+			"price": "0",
+			"priceCurrency": "USD"
+		},
+		"potentialAction": {
+			"@type": "SearchAction",
+			"target": {
+				"@type": "EntryPoint",
+				"urlTemplate": "https://hailight.space/search?q={search_term_string}"
+			},
+			"query-input": "required name=search_term_string"
+		},
+		"featureList": [
+			"Cross-source connection mapping",
+			"arXiv paper indexing",
+			"OpenAlex scholarly works integration",
+			"Vector embedding similarity search (1536 dimensions)",
+			"Automatic topic clustering",
+			"Semantic bridge detection between research topics",
+			"Knowledge gap identification",
+			"Contradiction detection across sources",
+			"Auto-research daemon that fills knowledge gaps",
+			"Research trajectory analysis"
+		]
+	})}</script>`}
 </svelte:head>
 
 <div class="min-h-screen bg-void text-text">
@@ -130,6 +179,8 @@
 
 	<!-- Footer -->
 	<footer class="py-8 text-center text-xs text-muted/40">
+		<a href="/about" class="hover:text-muted transition-colors">How it works</a>
+		<span class="mx-2">&middot;</span>
 		hailight.space
 	</footer>
 </div>
